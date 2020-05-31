@@ -32,15 +32,23 @@
 
 (defgroup projectile-header-line nil
   "Show header line from project root."
-  :prefix "projectile-header-line-")
+  :prefix "projectile-header-line-"
+  :group 'projectile
+  :link '(url-link :tag "GitHub" "https://github.com/leodag/projectile-header-line")
+  :link '(emacs-commentary-link :tag "Commentary" "projectile-header-line"))
 
 (defcustom projectile-header-line-indent 3
-  "Indentation at the start of the header line, in columns.
-Will be overriden if `projectile-header-line-dynamic-indent' is non-nil."
-  :local t)
+  "Evaluates to a number to get the indentation at the start of the header
+line, in columns. Will be overriden if `projectile-header-line-dynamic-indent'
+is non-nil."
+  :local t
+  :type 'sexp
+  :group 'projectile-header-line)
 
 (defcustom projectile-header-line-dynamic-indent t
-  "Adjust indent according to fringe, margin and line number display.")
+  "Adjust indent according to fringe, margin and line number display."
+  :type 'boolean
+  :group 'projectile-header-line)
 
 (defface projectile-header-line-project
   '((default
@@ -48,7 +56,8 @@ Will be overriden if `projectile-header-line-dynamic-indent' is non-nil."
       :inherit header-line)
     (((class color))
      :foreground "DarkRed"))
-  "Face for projectile-header-line's project name")
+  "Face for projectile-header-line's project name"
+  :group 'projectile-header-line)
 
 (defface projectile-header-line-file
   '((default
@@ -56,7 +65,8 @@ Will be overriden if `projectile-header-line-dynamic-indent' is non-nil."
       :inherit header-line)
     (((class color))
      :foreground "CadetBlue3"))
-  "Face for projectile-header-line's file name")
+  "Face for projectile-header-line's file name"
+  :group 'projectile-header-line)
 
 (defvar-local projectile-header-line--margin-indent 0
   "Indentation caused by margin. Used by dynamic indent.")
@@ -153,6 +163,7 @@ and C++ modes only.
  (not message-mode)
 means that `projectile-header-line-mode' is always turned on except in
 `message-mode' buffers."
+  :group 'projectile-header-line
   :type '(choice (const :tag "none" nil)
                  (const :tag "all" t)
                  (set :menu-tag "mode-specific" :tag "modes"
@@ -208,6 +219,7 @@ to update indentation when `projectile-header-line-dynamic-indent' is true."
            (setq projectile-header-line--line-numbers-indent (+ (or newval 0) 2))))))))
 
 (defun projectile-header-line--line-numbers-hook ()
+  "Adjusts header line's indent when display-line-numbers is toggled"
   (setq projectile-header-line--line-numbers-indent
         (if display-line-numbers-mode
             (+ (or display-line-numbers-width 0) 2)
