@@ -226,3 +226,5 @@ to update indentation when `projectile-header-line-dynamic-indent' is true."
           0)))
 
 (provide 'projectile-header-line)
+
+;;; projectile-header-line.el ends here
