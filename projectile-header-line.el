@@ -88,30 +88,36 @@ overriden if `projectile-header-line-dynamic-indent' is non-nil."
 
 ;;; Header line generator functions
 
-(defun projectile-header-line ()
+(defun projectile-header-line (&optional project-name project-root file)
   "Return a header line in the format [project-name]/relative-path/file.
 Uses the faces `projectile-header-line-project' and `projectile-project-name-file'"
-  (let* ((file (f-canonical (buffer-file-name)))
+  (let* ((project-name (or project-name (projectile-project-name)))
+         (project-root (or project-root (projectile-project-root)))
+         ;; We do this because projectile also canonicalizes paths
+         (file (f-canonical (or file (buffer-file-name))))
          (filename (f-filename file))
-         (parts (f-dirname (f-relative file (projectile-project-root))))
+         (parts (f-dirname (f-relative file project-root)))
          (parts-f (if (not (string= parts "./"))
                       parts
                     ""))
          (project-name-f (concat "["
-                                 (propertize (projectile-project-name)
+                                 (propertize project-name
                                              'face 'projectile-header-line-project)
                                  "]"))
          (filename-f (propertize filename 'face 'projectile-header-line-file)))
     (concat project-name-f "/" parts-f filename-f)))
 
-(defun projectile-header-line--fallback ()
+(defun projectile-header-line--fallback (&optional file)
   "Return a header line in the format '/path/to/file', abbreviated.
 Uses the face `projectile-header-line-file'."
-  (let* ((file (buffer-file-name))
+  (let* ((file (or file (buffer-file-name)))
          (path (abbreviate-file-name (f-dirname file)))
          (filename (f-filename file))
+         (path-f (if (not (string= path "/"))
+                     path
+                   ""))
          (filename-f (propertize filename 'face 'projectile-header-line-file)))
-    (concat path "/" filename-f)))
+    (concat path-f "/" filename-f)))
 
 
 ;;; Minor mode
