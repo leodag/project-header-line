@@ -22,6 +22,16 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+;;; Commentary:
+
+;; Displays a header line showing project name and path inside
+;; project.  Falls back to abbreviated path if not in a project,
+;; or buffer name if buffer does not have a file name.
+
+;; When enabled as a global mode, will enable itself on every
+;; applicable mode (per `projectile-header-line-global-modes'),
+;; and try to enable itself when saving.
+
 ;;; Code:
 
 (require 'f)
@@ -38,9 +48,9 @@
   :link '(emacs-commentary-link :tag "Commentary" "projectile-header-line"))
 
 (defcustom projectile-header-line-indent 3
-  "Evaluates to a number to get the indentation at the start of the header
-line, in columns. Will be overriden if `projectile-header-line-dynamic-indent'
-is non-nil."
+  "The indentation at the start of `projectile-header-line', in columns.
+Evaluated safely to a number in `header-line-format'.  Will be
+overriden if `projectile-header-line-dynamic-indent' is non-nil."
   :local t
   :type 'sexp
   :group 'projectile-header-line)
@@ -69,17 +79,17 @@ is non-nil."
   :group 'projectile-header-line)
 
 (defvar-local projectile-header-line--margin-indent 0
-  "Indentation caused by margin. Used by dynamic indent.")
+  "Indentation caused by margin.  Used by dynamic indent.")
 (defvar-local projectile-header-line--line-numbers-indent 0
-  "Indentation caused by line numbers. Used by dynamic indent.")
+  "Indentation caused by line numbers.  Used by dynamic indent.")
 (defvar projectile-header-line--fringe-indent 0
-  "Indentation caused by fringe. Used by dynamic indent.")
+  "Indentation caused by fringe.  Used by dynamic indent.")
 
 
 ;;; Header line generator functions
 
 (defun projectile-header-line ()
-  "Returns a header line in the format [project-name]/relative-path/file
+  "Return a header line in the format [project-name]/relative-path/file.
 Uses the faces `projectile-header-line-project' and `projectile-project-name-file'"
   (let* ((file (f-canonical (buffer-file-name)))
          (filename (f-filename file))
@@ -95,7 +105,7 @@ Uses the faces `projectile-header-line-project' and `projectile-project-name-fil
     (concat project-name-f "/" parts-f filename-f)))
 
 (defun projectile-header-line--fallback ()
-  "Returns a header line in the format '/path/to/file', appropriately abbreviated.
+  "Return a header line in the format '/path/to/file', abbreviated.
 Uses the face `projectile-header-line-file'."
   (let* ((file (buffer-file-name))
          (path (abbreviate-file-name (f-dirname file)))
@@ -151,8 +161,7 @@ do not show a header line."
 ;;; Global mode
 
 (defcustom projectile-header-line-global-modes t
-  "Modes for which `projectile-header-line-mode' mode is turned on by
-`global-projectile-header-line-mode'.
+  "Modes for which the minor mode is turned on by its global mode.
 If nil, means no modes.  If t, then all major modes have it turned on.
 If a list, it should be a list of `major-mode' symbol names for which
 `projectile-header-line-mode' should be automatically turned on.  The
@@ -194,8 +203,10 @@ means that `projectile-header-line-mode' is always turned on except in
 ;;; Dynamic indent
 
 (defun projectile-header-line--indent-watcher (symbol newval operation where)
-  "Watches variables `fringe-mode', `left-margin-width' and `display-line-numbers-width'
-to update indentation when `projectile-header-line-dynamic-indent' is true."
+  "Update dynamic indent according to watched variables.
+Watches variables `fringe-mode', `left-margin-width' and
+`display-line-numbers-width' to update indentation when
+`projectile-header-line-dynamic-indent' is true."
   ;;(message "watch %s %s %s %s" symbol newval operation (and where t))
   (pcase symbol
     ('fringe-mode
@@ -219,7 +230,7 @@ to update indentation when `projectile-header-line-dynamic-indent' is true."
            (setq projectile-header-line--line-numbers-indent (+ (or newval 0) 2))))))))
 
 (defun projectile-header-line--line-numbers-hook ()
-  "Adjusts header line's indent when display-line-numbers is toggled"
+  "Adjusts header line's indent when `display-line-numbers' is toggled."
   (setq projectile-header-line--line-numbers-indent
         (if display-line-numbers-mode
             (+ (or display-line-numbers-width 0) 2)
