@@ -80,7 +80,7 @@ overriden if `projectile-header-line-dynamic-indent' is non-nil."
 
 (defvar-local projectile-header-line--margin-indent 0
   "Indentation caused by margin.  Used by dynamic indent.")
-(defvar-local projectile-header-line--line-numbers-indent 0
+(defvar-local projectile-header-line--line-number-indent 0
   "Indentation caused by line numbers.  Used by dynamic indent.")
 (defvar projectile-header-line--fringe-indent 0
   "Indentation caused by fringe.  Used by dynamic indent.")
@@ -131,7 +131,8 @@ do not show a header line."
   (cond
    (projectile-header-line-mode
     (setq header-line-format
-          `((:propertize " " display (space :width projectile-header-line-indent))
+          `((:eval (projectile-header-line--update-line-number-indent))
+            (:propertize " " display (space :width projectile-header-line-indent))
             (:eval (cond
                     ((and (buffer-file-name) (projectile-project-p))
                      (projectile-header-line))
@@ -143,25 +144,18 @@ do not show a header line."
     (when projectile-header-line-dynamic-indent
       (setq projectile-header-line-indent '(+ projectile-header-line--margin-indent
                                               projectile-header-line--fringe-indent
-                                              projectile-header-line--line-numbers-indent))
+                                              projectile-header-line--line-number-indent))
 
       (setq projectile-header-line--fringe-indent (/ (car (window-fringes)) (frame-char-width))
             projectile-header-line--margin-indent (or left-margin-width 0))
       (add-variable-watcher 'fringe-mode 'projectile-header-line--indent-watcher)
       (add-variable-watcher 'left-margin-width 'projectile-header-line--indent-watcher)
-      (when (boundp display-line-numbers-mode)
-        ;; hackish, good value if starting at bob: display-line-numbers-width is only correctly
-        ;; updated after first user interaction. This also applies for when it is grown automatically.
-        (setq projectile-header-line--line-numbers-indent (if display-line-numbers-mode
-                                                              (+ (or display-line-numbers-width 2) 2)
-                                                            0))
-        (add-hook 'display-line-numbers-mode-hook 'projectile-header-line--line-numbers-hook)
-        (add-variable-watcher 'display-line-numbers-width 'projectile-header-line--indent-watcher))))
+      (when (boundp 'display-line-numbers-mode)
+        (projectile-header-line--update-line-number-indent))))
    (t
     (kill-local-variable 'header-line-format)
     (remove-variable-watcher 'fringe-mode 'projectile-header-line--indent-watcher)
-    (remove-variable-watcher 'left-margin-width 'projectile-header-line--indent-watcher)
-    (remove-variable-watcher 'display-line-numbers-width 'projectile-header-line--indent-watcher))))
+    (remove-variable-watcher 'left-margin-width 'projectile-header-line--indent-watcher))))
 
 
 ;;; Global mode
@@ -208,11 +202,19 @@ means that `projectile-header-line-mode' is always turned on except in
 
 ;;; Dynamic indent
 
+(defun projectile-header-line--update-line-number-indent ()
+  "Update our internal line number width.
+Is run every header line update in an (:eval ...) form when ."
+  (setq projectile-header-line--line-number-indent (ceiling (line-number-display-width 'columns)))
+  ;; returns an empty string so it doesn't actually occupy any
+  ;; space in the header line
+  "")
+
 (defun projectile-header-line--indent-watcher (symbol newval operation where)
   "Update dynamic indent according to watched variables.
-Watches variables `fringe-mode', `left-margin-width' and
-`display-line-numbers-width' to update indentation when
-`projectile-header-line-dynamic-indent' is true."
+Watches variables `fringe-mode' and `left-margin-width' to update
+indentation when `projectile-header-line-dynamic-indent' is
+true."
   ;;(message "watch %s %s %s %s" symbol newval operation (and where t))
   (pcase symbol
     ('fringe-mode
@@ -228,19 +230,7 @@ Watches variables `fringe-mode', `left-margin-width' and
      (when (and (eq operation 'set) where)
        (with-current-buffer where
          (let ((left-margin (or newval 0)))
-           (setq projectile-header-line--margin-indent left-margin)))))
-    ('display-line-numbers-width
-     (when (and (eq operation 'set) where)
-       (with-current-buffer where
-         (when display-line-numbers-mode
-           (setq projectile-header-line--line-numbers-indent (+ (or newval 0) 2))))))))
-
-(defun projectile-header-line--line-numbers-hook ()
-  "Adjusts header line's indent when `display-line-numbers' is toggled."
-  (setq projectile-header-line--line-numbers-indent
-        (if display-line-numbers-mode
-            (+ (or display-line-numbers-width 0) 2)
-          0)))
+           (setq projectile-header-line--margin-indent left-margin)))))))
 
 (provide 'projectile-header-line)
 
