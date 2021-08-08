@@ -66,7 +66,7 @@ overriden if `projectile-header-line-dynamic-indent' is non-nil."
       :inherit header-line)
     (((class color))
      :foreground "DarkRed"))
-  "Face for projectile-header-line's project name"
+  "Face for projectile-header-line's project name."
   :group 'projectile-header-line)
 
 (defface projectile-header-line-file
@@ -75,7 +75,7 @@ overriden if `projectile-header-line-dynamic-indent' is non-nil."
       :inherit header-line)
     (((class color))
      :foreground "CadetBlue3"))
-  "Face for projectile-header-line's file name"
+  "Face for projectile-header-line's file name."
   :group 'projectile-header-line)
 
 (defvar-local projectile-header-line--margin-indent 0
@@ -89,8 +89,9 @@ overriden if `projectile-header-line-dynamic-indent' is non-nil."
 ;;; Header line generator functions
 
 (defun projectile-header-line (&optional project-name project-root file)
-  "Return a header line in the format [project-name]/relative-path/file.
-Uses the faces `projectile-header-line-project' and `projectile-project-name-file'"
+  "Return a header line in the format [PROJECT-NAME]/relative-path/file.
+Uses faces `projectile-header-line-project' and `projectile-project-name-file'.
+The path of FILE will be found relative to PROJECT-ROOT."
   (let* ((project-name (or project-name (projectile-project-name)))
          (project-root (or project-root (projectile-project-root)))
          ;; We do this because projectile also canonicalizes paths
@@ -124,9 +125,10 @@ Uses the face `projectile-header-line-file'."
 
 ;;;###autoload
 (define-minor-mode projectile-header-line-mode
-  "Shows a header line using `projectile-header-line' if visiting a file in a project,
-or using `projectile-header-line--fallback' if in a file outside a project. Else
-do not show a header line."
+  "Shows an appropriate header line on every file buffer.
+Shows a header line using `projectile-header-line' if visiting
+a file in a project, or using `projectile-header-line--fallback'
+if in a file outside a project."
   :group 'projectile-header-line
   (cond
    (projectile-header-line-mode
@@ -214,7 +216,10 @@ Is run every header line update in an (:eval ...) form when ."
   "Update dynamic indent according to watched variables.
 Watches variables `fringe-mode' and `left-margin-width' to update
 indentation when `projectile-header-line-dynamic-indent' is
-true."
+true.
+
+Arguments SYMBOL, NEWVAL, OPERATION and WHERE are documented in
+`add-variable-watcher'."
   ;;(message "watch %s %s %s %s" symbol newval operation (and where t))
   (pcase symbol
     ('fringe-mode
