@@ -26,7 +26,7 @@
 (ert-deftest projectile-header-line-test/common-case ()
   (should
    (equal-including-properties
-    (projectile-header-line "proj" "/proj" "/proj/dir/file")
+    (projectile-header-line "/proj" "proj" "/proj/dir/file")
     #("[proj]/dir/file"
       1 5 (face projectile-header-line-project)
       11 15 (face projectile-header-line-file)))))
@@ -34,7 +34,7 @@
 (ert-deftest projectile-header-line-test/root-of-project ()
   (should
    (equal-including-properties
-    (projectile-header-line "proj" "/proj" "/proj/file")
+    (projectile-header-line "/proj" "proj" "/proj/file")
     #("[proj]/file"
       1 5 (face projectile-header-line-project)
       7 11 (face projectile-header-line-file)))))
@@ -42,7 +42,7 @@
 (ert-deftest projectile-header-line-test/project-at-root ()
   (should
    (equal-including-properties
-    (projectile-header-line "proj" "/" "/dir/file")
+    (projectile-header-line "/" "proj" "/dir/file")
     #("[proj]/dir/file"
       1 5 (face projectile-header-line-project)
       11 15 (face projectile-header-line-file)))))
@@ -50,7 +50,7 @@
 (ert-deftest projectile-header-line-test/root-of-project-at-root ()
   (should
    (equal-including-properties
-    (projectile-header-line "proj" "/" "/file")
+    (projectile-header-line "/" "proj" "/file")
     #("[proj]/file"
       1 5 (face projectile-header-line-project)
       7 11 (face projectile-header-line-file)))))

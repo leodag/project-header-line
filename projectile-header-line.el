@@ -3,7 +3,7 @@
 ;; Author: Leonardo Schripsema
 ;; Created: 2020-05-24
 ;; Version: 0.1.0
-;; Package-Requires: ((projectile "2.1.0") (f "0.20.0"))
+;; Package-Requires: ((projectile "2.1.0"))
 ;; Keywords: header-line, mode-line, project
 ;; URL: https://github.com/leodag/projectile-header-line
 
@@ -34,7 +34,6 @@
 
 ;;; Code:
 
-(require 'f)
 (require 'projectile)
 
 
@@ -88,37 +87,37 @@ overriden if `projectile-header-line-dynamic-indent' is non-nil."
 
 ;;; Header line generator functions
 
-(defun projectile-header-line (&optional project-name project-root file)
+(defun projectile-header-line (&optional project-root project-name file)
   "Return a header line in the format [PROJECT-NAME]/relative-path/file.
-Uses faces `projectile-header-line-project' and `projectile-project-name-file'.
-The path of FILE will be found relative to PROJECT-ROOT."
-  (let* ((project-name (or project-name (projectile-project-name)))
-         (project-root (or project-root (projectile-project-root)))
+Uses faces `projectile-header-line-project' and
+`projectile-project-name-file'.  The path of FILE will be found
+relative to PROJECT-ROOT.  If unspecified, the arguments will be
+obtained from projectile and the current buffer."
+  (let* ((project-root (or project-root (projectile-project-root)))
+         (project-name (or project-name (projectile-project-name project-root)))
          ;; We do this because projectile also canonicalizes paths
-         (file (f-canonical (or file (buffer-file-name))))
-         (filename (f-filename file))
-         (parts (f-dirname (f-relative file project-root)))
-         (parts-f (if (not (string= parts "./"))
-                      parts
-                    ""))
+         (file (file-truename (or file (buffer-file-name))))
+         (filename (file-name-nondirectory file))
+         ;; Using file-relative-name leads to a lot of I/O done
+         ;; because of case-sensitivity, we don't care about
+         ;; that.
+         (parts (substring (file-name-directory file) (length project-root)))
          (project-name-f (concat "["
                                  (propertize project-name
                                              'face 'projectile-header-line-project)
                                  "]"))
          (filename-f (propertize filename 'face 'projectile-header-line-file)))
-    (concat project-name-f "/" parts-f filename-f)))
+    (concat project-name-f "/" parts filename-f)))
 
 (defun projectile-header-line--fallback (&optional file)
   "Return a header line in the format '/path/to/file', abbreviated.
-Uses the face `projectile-header-line-file'."
+Uses the face `projectile-header-line-file'.  An argument FILE
+may be passed to make the header line for that path."
   (let* ((file (or file (buffer-file-name)))
-         (path (abbreviate-file-name (f-dirname file)))
-         (filename (f-filename file))
-         (path-f (if (not (string= path "/"))
-                     path
-                   ""))
+         (path (abbreviate-file-name (file-name-directory file)))
+         (filename (file-name-nondirectory file))
          (filename-f (propertize filename 'face 'projectile-header-line-file)))
-    (concat path-f "/" filename-f)))
+    (concat path filename-f)))
 
 
 ;;; Minor mode
@@ -134,14 +133,16 @@ if in a file outside a project."
    (projectile-header-line-mode
     (setq header-line-format
           `((:eval (projectile-header-line--update-line-number-indent))
-            (:propertize " " display (space :width projectile-header-line-indent))
-            (:eval (cond
-                    ((and (buffer-file-name) (projectile-project-p))
-                     (projectile-header-line))
-                    ((buffer-file-name)
-                     (projectile-header-line--fallback))
-                    (t
-                     "%b")))))
+            (:propertize " " display (space :width projectile-header-line-indent) face line-number)
+            (:eval (let* ((is-file (buffer-file-name))
+                          (is-project-file (and is-file (projectile-project-root))))
+                     (cond
+                      (is-project-file
+                       (projectile-header-line))
+                      (is-file
+                       (projectile-header-line--fallback))
+                      (t
+                       "%b"))))))
     (kill-local-variable 'projectile-header-line-indent)
     (when projectile-header-line-dynamic-indent
       (setq projectile-header-line-indent '(+ projectile-header-line--margin-indent
