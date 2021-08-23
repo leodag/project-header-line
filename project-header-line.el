@@ -99,13 +99,14 @@ obtained from project and the current buffer."
          (project-name (or project-name (funcall project-header-line-project-name-function
                                                  project-root)))
          (file (or file (buffer-file-name)))
-         (filename (file-name-nondirectory file))
          ;; Using file-relative-name leads to I/O and causes
          ;; severe lag with TRAMP, even locally.
          ;; abbreviate-file-name also causes I/O with TRAMP
-         (parts (file-name-directory (if (string-match project-root file)
-                                         (substring file (match-end 0))
-                                       (error "Project root did not match the file name, project root is %s and file name is %s" project-root file))))
+         (file-relative (if (string-match project-root file)
+                            (substring file (match-end 0))
+                          (error "Project root did not match the file name, project root is %s and file name is %s" project-root file)))
+         (filename (file-name-nondirectory file-relative))
+         (parts (file-name-directory file-relative))
          (project-name-f (concat "["
                                  (propertize project-name
                                              'face 'project-header-line-project)
@@ -126,7 +127,9 @@ may be passed to make the header line for that path."
 (defun project-header-line-project-directory-name (project-root)
   "Return a project name for the project at PROJECT-ROOT.
 The name will be the project directory's filename."
-  (file-name-nondirectory (directory-file-name project-root)))
+  (if (string-match "/\\([^/]+\\)/\\'" project-root)
+      (match-string 1 project-root)
+    project-root))
 
 (defun project-header-line-project-root ()
   "Return project.el's project root for the current file."
