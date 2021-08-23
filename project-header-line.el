@@ -95,7 +95,7 @@ Uses faces `project-header-line-project' and
 `project-header-line-file'.  The path of FILE will be found
 relative to PROJECT-ROOT.  If unspecified, the arguments will be
 obtained from project and the current buffer."
-  (let* ((project-root (or project-root (project-root (project-current))))
+  (let* ((project-root (or project-root (funcall project-header-line-project-root-function)))
          (project-name (or project-name (funcall project-header-line-project-name-function
                                                  project-root)))
          (file (or file (buffer-file-name)))
