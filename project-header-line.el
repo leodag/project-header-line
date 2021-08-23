@@ -100,10 +100,12 @@ obtained from project and the current buffer."
                                                  project-root)))
          (file (or file (buffer-file-name)))
          (filename (file-name-nondirectory file))
-         ;; Using file-relative-name leads to a lot of I/O done
-         ;; because of case-sensitivity, we don't care about
-         ;; that.
-         (parts (substring (file-name-directory file) (length project-root)))
+         ;; Using file-relative-name leads to I/O and causes
+         ;; severe lag with TRAMP, even locally.
+         ;; abbreviate-file-name also causes I/O with TRAMP
+         (parts (file-name-directory (if (string-match project-root file)
+                                         (substring file (match-end 0))
+                                       (error "Project root did not match the file name, project root is %s and file name is %s" project-root file))))
          (project-name-f (concat "["
                                  (propertize project-name
                                              'face 'project-header-line-project)
