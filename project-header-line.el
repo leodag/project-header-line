@@ -71,13 +71,20 @@
 (defvar-local project-header-line--project-root nil
   "Current cached project root.
 This has to be cached so we don't have to do I/O every header
-line update.")
+line update.  May be updated with
+`project-header-line-update-project-root'.")
 
 (defvar project-header-line-project-root-function
-  'project-header-line-project-root)
+  'project-header-line-project-root
+  "Function that returns the current project root.
+Must be a function that receives no arguments and returns the
+project root for the current buffer.")
 
 (defvar project-header-line-project-name-function
-  'project-header-line-project-directory-name)
+  'project-header-line-project-directory-name
+  "Function that returns the project name for a project.
+Must be a function taht receives the current project root as the
+only argument, and returns the project name.")
 
 
 ;;; Header line generator functions
