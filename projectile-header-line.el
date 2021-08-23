@@ -1,13 +1,13 @@
-;;; projectile-header-line.el --- a header-line showing path from project root -*- lexical-binding: t -*-
+;;; project-header-line.el --- a header-line showing path from project root -*- lexical-binding: t -*-
 
 ;; Author: Leonardo Schripsema
 ;; Created: 2020-05-24
-;; Version: 0.1.0
-;; Package-Requires: ((projectile "2.1.0"))
+;; Version: 0.2.0
+;; Package-Requires: ((project "0.6.1"))
 ;; Keywords: header-line, mode-line, project
-;; URL: https://github.com/leodag/projectile-header-line
+;; URL: https://github.com/leodag/project-header-line
 
-;; Copyright (C) 2020 Leonardo Schripsema
+;; Copyright (C) 2020-2021 Leonardo Schripsema
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -25,78 +25,73 @@
 ;;; Commentary:
 
 ;; Displays a header line showing project name and path inside
-;; project.  Falls back to abbreviated path if not in a project,
-;; or buffer name if buffer does not have a file name.
+;; project.  Falls back to abbreviated path if not in a project.
 
 ;; When enabled as a global mode, will enable itself on every
-;; applicable mode (per `projectile-header-line-global-modes'),
+;; applicable mode (per `project-header-line-global-modes'),
 ;; and try to enable itself when saving.
 
 ;;; Code:
 
-(require 'projectile)
+(require 'project)
 
 
 ;;; Variables
 
-(defgroup projectile-header-line nil
+(defgroup project-header-line nil
   "Show header line from project root."
-  :prefix "projectile-header-line-"
-  :group 'projectile
-  :link '(url-link :tag "GitHub" "https://github.com/leodag/projectile-header-line")
-  :link '(emacs-commentary-link :tag "Commentary" "projectile-header-line"))
+  :prefix "project-header-line-"
+  :group 'project
+  :link '(url-link :tag "GitHub" "https://github.com/leodag/project-header-line")
+  :link '(emacs-commentary-link :tag "Commentary" "project-header-line"))
 
-(defcustom projectile-header-line-indent 3
-  "The indentation at the start of `projectile-header-line', in columns.
-Evaluated safely to a number in `header-line-format'.  Will be
-overriden if `projectile-header-line-dynamic-indent' is non-nil."
-  :local t
-  :type 'sexp
-  :group 'projectile-header-line)
-
-(defcustom projectile-header-line-dynamic-indent t
-  "Adjust indent according to fringe, margin and line number display."
+(defcustom project-header-line-dynamic-indent t
+  "Indent to align with text area and line number display."
   :type 'boolean
-  :group 'projectile-header-line)
+  :group 'project-header-line)
 
-(defface projectile-header-line-project
+(defface project-header-line-project
   '((default
       :weight bold
       :inherit header-line)
     (((class color))
      :foreground "DarkRed"))
-  "Face for projectile-header-line's project name."
-  :group 'projectile-header-line)
+  "Face for project-header-line's project name."
+  :group 'project-header-line)
 
-(defface projectile-header-line-file
+(defface project-header-line-file
   '((default
       :weight bold
       :inherit header-line)
     (((class color))
      :foreground "CadetBlue3"))
-  "Face for projectile-header-line's file name."
-  :group 'projectile-header-line)
+  "Face for project-header-line's file name."
+  :group 'project-header-line)
 
-(defvar-local projectile-header-line--margin-indent 0
-  "Indentation caused by margin.  Used by dynamic indent.")
-(defvar-local projectile-header-line--line-number-indent 0
-  "Indentation caused by line numbers.  Used by dynamic indent.")
-(defvar projectile-header-line--fringe-indent 0
-  "Indentation caused by fringe.  Used by dynamic indent.")
+(defvar-local project-header-line--project-root nil
+  "Current cached project root.
+This has to be cached so we don't have to do I/O every header
+line update.")
+
+(defvar project-header-line-project-root-function
+  'project-header-line-project-root)
+
+(defvar project-header-line-project-name-function
+  'project-header-line-project-directory-name)
 
 
 ;;; Header line generator functions
 
-(defun projectile-header-line (&optional project-root project-name file)
+(defun project-header-line (&optional project-root project-name file)
   "Return a header line in the format [PROJECT-NAME]/relative-path/file.
-Uses faces `projectile-header-line-project' and
-`projectile-project-name-file'.  The path of FILE will be found
+Uses faces `project-header-line-project' and
+`project-header-line-file'.  The path of FILE will be found
 relative to PROJECT-ROOT.  If unspecified, the arguments will be
-obtained from projectile and the current buffer."
-  (let* ((project-root (or project-root (projectile-project-root)))
-         (project-name (or project-name (projectile-project-name project-root)))
-         ;; We do this because projectile also canonicalizes paths
-         (file (file-truename (or file (buffer-file-name))))
+obtained from project and the current buffer."
+  (let* ((project-root (or project-root (project-root (project-current))))
+         (project-name (or project-name (funcall project-header-line-project-name-function
+                                                 project-root)))
+         (file (or file (buffer-file-name)))
          (filename (file-name-nondirectory file))
          ;; Using file-relative-name leads to a lot of I/O done
          ;; because of case-sensitivity, we don't care about
@@ -104,78 +99,82 @@ obtained from projectile and the current buffer."
          (parts (substring (file-name-directory file) (length project-root)))
          (project-name-f (concat "["
                                  (propertize project-name
-                                             'face 'projectile-header-line-project)
+                                             'face 'project-header-line-project)
                                  "]"))
-         (filename-f (propertize filename 'face 'projectile-header-line-file)))
+         (filename-f (propertize filename 'face 'project-header-line-file)))
     (concat project-name-f "/" parts filename-f)))
 
-(defun projectile-header-line--fallback (&optional file)
+(defun project-header-line--fallback (&optional file)
   "Return a header line in the format '/path/to/file', abbreviated.
-Uses the face `projectile-header-line-file'.  An argument FILE
+Uses the face `project-header-line-file'.  An argument FILE
 may be passed to make the header line for that path."
   (let* ((file (or file (buffer-file-name)))
          (path (abbreviate-file-name (file-name-directory file)))
          (filename (file-name-nondirectory file))
-         (filename-f (propertize filename 'face 'projectile-header-line-file)))
+         (filename-f (propertize filename 'face 'project-header-line-file)))
     (concat path filename-f)))
+
+(defun project-header-line-project-directory-name (project-root)
+  "Return a project name for the project at PROJECT-ROOT.
+The name will be the project directory's filename."
+  (file-name-nondirectory (directory-file-name project-root)))
+
+(defun project-header-line-project-root ()
+  "Return project.el's project root for the current file."
+  (when-let (pr (project-current))
+    ;; filename expanded so filename can be cut by length
+    (expand-file-name (project-root pr))))
+
+(defun project-header-line-update-project-root ()
+  "Update header line's cached project root.
+May be called interactively to detect a change in the project
+root, including it starting to exist or ceasing to."
+  (interactive)
+  (setq project-header-line--project-root
+        (funcall project-header-line-project-root-function)))
 
 
 ;;; Minor mode
 
 ;;;###autoload
-(define-minor-mode projectile-header-line-mode
+(define-minor-mode project-header-line-mode
   "Shows an appropriate header line on every file buffer.
-Shows a header line using `projectile-header-line' if visiting
-a file in a project, or using `projectile-header-line--fallback'
+Shows a header line using `project-header-line' if visiting
+a file in a project, or using `project-header-line--fallback'
 if in a file outside a project."
-  :group 'projectile-header-line
+  :group 'project-header-line
   (cond
-   (projectile-header-line-mode
+   (project-header-line-mode
     (setq header-line-format
-          `((:eval (projectile-header-line--update-line-number-indent))
-            (:propertize " " display (space :width projectile-header-line-indent) face line-number)
-            (:eval (let* ((is-file (buffer-file-name))
-                          (is-project-file (and is-file (projectile-project-root))))
-                     (cond
-                      (is-project-file
-                       (projectile-header-line))
-                      (is-file
-                       (projectile-header-line--fallback))
-                      (t
-                       "%b"))))))
-    (kill-local-variable 'projectile-header-line-indent)
-    (when projectile-header-line-dynamic-indent
-      (setq projectile-header-line-indent '(+ projectile-header-line--margin-indent
-                                              projectile-header-line--fringe-indent
-                                              projectile-header-line--line-number-indent))
-
-      (setq projectile-header-line--fringe-indent (/ (car (window-fringes)) (frame-char-width))
-            projectile-header-line--margin-indent (or left-margin-width 0))
-      (add-variable-watcher 'fringe-mode 'projectile-header-line--indent-watcher)
-      (add-variable-watcher 'left-margin-width 'projectile-header-line--indent-watcher)
-      (when (boundp 'display-line-numbers-mode)
-        (projectile-header-line--update-line-number-indent))))
+          '(;; aligns to the start of the text area
+            ;; considers fringe, margins and scroll bar
+            (project-header-line-dynamic-indent (:propertize " " display (space :align-to 0)))
+            ;; aligns to line numbers
+            (project-header-line-dynamic-indent
+             (:eval `(:propertize " " display (space :width (,(line-number-display-width t))))))
+            (project-header-line--project-root
+             (:eval (project-header-line project-header-line--project-root))
+             (:eval (project-header-line--fallback)))))
+    (project-header-line-update-project-root))
    (t
-    (kill-local-variable 'header-line-format)
-    (remove-variable-watcher 'fringe-mode 'projectile-header-line--indent-watcher)
-    (remove-variable-watcher 'left-margin-width 'projectile-header-line--indent-watcher))))
+    (kill-local-variable 'header-line-format))))
 
 
 ;;; Global mode
 
-(defcustom projectile-header-line-global-modes t
+(defcustom project-header-line-global-modes t
   "Modes for which the minor mode is turned on by its global mode.
 If nil, means no modes.  If t, then all major modes have it turned on.
 If a list, it should be a list of `major-mode' symbol names for which
-`projectile-header-line-mode' should be automatically turned on.  The
+`project-header-line-mode' should be automatically turned on.  The
 sense of the list is negated if it begins with `not'.  For example:
  (c-mode c++-mode)
-means that `projectile-header-line-mode' is turned on for buffers in C
+means that `project-header-line-mode' is turned on for buffers in C
 and C++ modes only.
  (not message-mode)
-means that `projectile-header-line-mode' is always turned on except in
+means that `project-header-line-mode' is always turned on except in
 `message-mode' buffers."
-  :group 'projectile-header-line
+  :group 'project-header-line
   :type '(choice (const :tag "none" nil)
                  (const :tag "all" t)
                  (set :menu-tag "mode-specific" :tag "modes"
@@ -183,61 +182,27 @@ means that `projectile-header-line-mode' is always turned on except in
                       (const :tag "Except" not)
                       (repeat :inline t (symbol :tag "mode")))))
 
-(defun projectile-header-line--turn-on ()
-  "Turn `projectile-header-line-mode' on if applicable."
-  (when (and (not projectile-header-line-mode)
+(defun project-header-line--turn-on ()
+  "Turn `project-header-line-mode' on if applicable."
+  (when (and (not project-header-line-mode)
              (not (eq (aref (buffer-name) 0) ?\s))
              (buffer-file-name)
-             (cond ((eq projectile-header-line-global-modes t)
+             (cond ((eq project-header-line-global-modes t)
                     t)
-                   ((eq (car-safe projectile-header-line-global-modes) 'not)
-                    (not (memq major-mode (cdr projectile-header-line-global-modes))))
-                   (t (memq major-mode projectile-header-line-global-modes))))
-    (projectile-header-line-mode 1)))
+                   ((eq (car-safe project-header-line-global-modes) 'not)
+                    (not (memq major-mode (cdr project-header-line-global-modes))))
+                   (t (memq major-mode project-header-line-global-modes))))
+    (project-header-line-mode 1)))
 
 ;;;###autoload
-(define-global-minor-mode global-projectile-header-line-mode
-  projectile-header-line-mode projectile-header-line--turn-on
-  (if projectile-header-line-mode
-      (add-hook 'after-save-hook 'projectile-header-line--turn-on)
-    (remove-hook 'after-save-hook 'projectile-header-line--turn-on)))
+(define-global-minor-mode global-project-header-line-mode
+  project-header-line-mode project-header-line--turn-on
+  (if project-header-line-mode
+      (add-hook 'after-save-hook 'project-header-line--turn-on)
+    (remove-hook 'after-save-hook 'project-header-line--turn-on)))
 
 
-;;; Dynamic indent
 
-(defun projectile-header-line--update-line-number-indent ()
-  "Update our internal line number width.
-Is run every header line update in an (:eval ...) form when ."
-  (setq projectile-header-line--line-number-indent (ceiling (line-number-display-width 'columns)))
-  ;; returns an empty string so it doesn't actually occupy any
-  ;; space in the header line
-  "")
+(provide 'project-header-line)
 
-(defun projectile-header-line--indent-watcher (symbol newval operation where)
-  "Update dynamic indent according to watched variables.
-Watches variables `fringe-mode' and `left-margin-width' to update
-indentation when `projectile-header-line-dynamic-indent' is
-true.
-
-Arguments SYMBOL, NEWVAL, OPERATION and WHERE are documented in
-`add-variable-watcher'."
-  ;;(message "watch %s %s %s %s" symbol newval operation (and where t))
-  (pcase symbol
-    ('fringe-mode
-     (when (eq operation 'set)
-       (let* ((left-fringe-px (or (if (consp newval)
-                                      (car newval)
-                                    newval)
-                                  8))
-              ;; summing width-1 we get the ceiling
-              (left-fringe (/ (+ left-fringe-px (frame-char-width) -1) (frame-char-width))))
-         (setq projectile-header-line--fringe-indent left-fringe))))
-    ('left-margin-width
-     (when (and (eq operation 'set) where)
-       (with-current-buffer where
-         (let ((left-margin (or newval 0)))
-           (setq projectile-header-line--margin-indent left-margin)))))))
-
-(provide 'projectile-header-line)
-
-;;; projectile-header-line.el ends here
+;;; project-header-line.el ends here
