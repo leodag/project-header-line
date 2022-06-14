@@ -98,7 +98,10 @@ obtained from project and the current buffer."
   (let* ((project-root (or project-root (funcall project-header-line-project-root-function)))
          (project-name (or project-name (funcall project-header-line-project-name-function
                                                  project-root)))
-         (file (or file (buffer-file-name)))
+         (file (or file
+                   (buffer-file-name)
+                   ;; may start with a ~
+                   (expand-file-name default-directory)))
          ;; Using file-relative-name leads to I/O and causes
          ;; severe lag with TRAMP, even locally.
          ;; abbreviate-file-name also causes I/O with TRAMP
@@ -198,7 +201,8 @@ means that `project-header-line-mode' is always turned on except in
   "Turn `project-header-line-mode' on if applicable."
   (when (and (not project-header-line-mode)
              (not (eq (aref (buffer-name) 0) ?\s))
-             (buffer-file-name)
+             (or (buffer-file-name)
+                 (derived-mode-p 'dired-mode))
              (cond ((eq project-header-line-global-modes t)
                     t)
                    ((eq (car-safe project-header-line-global-modes) 'not)
