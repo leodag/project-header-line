@@ -83,7 +83,7 @@ project root for the current buffer.")
 (defvar project-header-line-project-name-function
   'project-header-line-project-directory-name
   "Function that returns the project name for a project.
-Must be a function taht receives the current project root as the
+Must be a function that receives the current project root as the
 only argument, and returns the project name.")
 
 
